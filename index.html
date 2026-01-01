@@ -97,12 +97,14 @@ input {
 
 /* ---------------- MAIN PAGE ---------------- */
 #satsang-page {
+    overflow: visible !important;
     width: 1200px;
     margin: auto;
     background: white;
     border: 2px solid black;
     padding: 10px;
     box-sizing: border-box;
+    border-radius: 8px;
 }
 
 /* Prevent page breaks inside important blocks */
@@ -262,7 +264,7 @@ th, td {
     <!-- CENTER -->
     <div style="text-align:center">
         <div style="background:white;border:2px solid var(--maroon);
-                    width:55px;height:55px;border-radius:50%;
+                    width:65px;height:65px;border-radius:50%;
                     display:flex;align-items:center;justify-content:center;
                     font-weight:bold">
             VISVAS
@@ -795,54 +797,72 @@ th, td {
     }
 
 
-    function exportPDF() {
-        const element = document.getElementById('satsang-page');
+function exportPDF() {
+    const element = document.getElementById('satsang-page');
 
-        // Apply temporary styles to fix white space and clipping
-        const originalStyle = element.getAttribute('style') || '';
-        element.style.width = '900px';
-        element.style.maxWidth = '900px';
-        element.style.margin = '0';
-        element.style.padding = '0';
-        element.style.boxSizing = 'border-box';
+    const originalStyle = element.getAttribute('style') || '';
 
-        document.body.style.margin = '0';
-        document.body.style.padding = '0';
+    // A4 landscape exact width
+    element.style.width = 'auto';
+    element.style.maxWidth = 'auto';
+    element.style.margin = '0 auto';
+    element.style.padding = '0';
+    element.style.boxSizing = 'border-box';
+    element.style.overflow = 'visible';
 
-        // Wait for all images to load
-        const images = element.getElementsByTagName('img');
-        const imagePromises = Array.from(images).map(img => {
-            if (img.complete) return Promise.resolve();
-            return new Promise(resolve => { img.onload = resolve; img.onerror = resolve; });
-        });
+    document.body.style.margin = '0';
+    document.body.style.padding = '0';
 
-        Promise.all(imagePromises).then(() => {
-            const opt = {
-                margin: [5, 5, 5, 5],
-                filename: 'Satsang_Chart.pdf',
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: {
-                    scale: 2,
-                    useCORS: true,
-                    logging: true,
-                    width: element.scrollWidth // ensures full width
-                },
-                jsPDF: {
-                    unit: 'mm',
-                    format: 'a4',
-                    orientation: element.scrollWidth > 210 ? 'landscape' : 'portrait' // auto switch
-                },
-                pagebreak: { mode: ['css', 'legacy'] }
-            };
+    // Wait for images
+    const images = element.querySelectorAll('img');
+    const imagePromises = Array.from(images).map(img =>
+        img.complete
+            ? Promise.resolve()
+            : new Promise(resolve => {
+                  img.onload = resolve;
+                  img.onerror = resolve;
+              })
+    );
 
-            html2pdf().set(opt).from(element).save().finally(() => {
-                // Revert styles after PDF generation
+    Promise.all(imagePromises).then(() => {
+        const opt = {
+            margin: 5,
+            filename: 'Satsang_Chart.pdf',
+            image: { type: 'jpeg', quality: 0.95 },
+
+            html2canvas: {
+                scale: 1.5,              // 🔴 IMPORTANT FIX
+                useCORS: true,
+                scrollX: 0,
+                scrollY: 0,
+                windowWidth: element.offsetWidth,
+                windowHeight: element.scrollHeight
+            },
+
+            jsPDF: {
+                unit: 'mm',
+                format: 'a4',
+                orientation: 'landscape'
+            },
+
+            pagebreak: {
+                mode: ['avoid-all']     // 🔴 prevents layout jumps
+            }
+        };
+
+        html2pdf()
+            .set(opt)
+            .from(element)
+            .save()
+            .finally(() => {
                 element.setAttribute('style', originalStyle);
                 document.body.style.margin = '';
                 document.body.style.padding = '';
             });
-        });
-    }
+    });
+}
+
+
 
 
     function copyForWhatsApp() {
