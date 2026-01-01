@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Satsang Allocation..</title>
+<title>Satsang Allocation</title>
 
 <!-- html2canvas library -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -26,7 +26,7 @@
 }
 
 body {
-    font-family: "Arial Narrow", Arial, sans-serif;
+    font-family: Roboto, sans-serif, "Arial Narrow", Arial;
     background-color: #555;
     padding: 20px;
 }
@@ -97,7 +97,7 @@ input {
 
 /* ---------------- MAIN PAGE ---------------- */
 #satsang-page {
-    width: 900px;
+    width: 1200px;
     margin: auto;
     background: white;
     border: 2px solid black;
@@ -157,35 +157,94 @@ th, td {
 [contenteditable="true"] {
     outline: none;
 }
+
+/* Sidebar Styles */
+.main-container {
+    display: flex;
+    max-width: 1200px;
+    margin: 0 auto;
+    gap: 20px;
+}
+
+.sidebar {
+    width: 250px;
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    height: fit-content;
+    position: sticky;
+    top: 20px;
+}
+
+.history-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+    font-size: 13px;
+}
+
+.history-name {
+    cursor: pointer;
+    color: #2980b9;
+    font-weight: bold;
+    flex-grow: 1;
+}
+
+.history-name:hover { text-decoration: underline; cursor: pointer}
+
+.delete-hist {
+    color: #e74c3c;
+    cursor: pointer;
+    font-weight: bold;
+    margin-left: 10px;
+    padding: 0 5px;
+    cursor: pointer;
+}
+
+/* Adjusting existing layout for the sidebar */
+.content-area {
+    flex-grow: 1;
+}
 </style>
 </head>
 
 <body>
 
 <!-- ================= CONTROLS ================= -->
-<div class="controls">
-    <h3>Satsang Devotees</h3>
-
-    <div class="input-row">
-        <div><label>Date</label><input type="date" id="dateInput"></div>
-        <div><label>Time</label><input type="time" id="timeInput"></div>
-        <div><label>Batch</label><input type="text" id="batchInput" value="A1812/2290"></div>
-        <div><label>Satsang #</label><input type="text" id="satsangInput" value="04"></div>
+<div class="main-container">
+    <div class="sidebar">
+        <h3>History (Last 5)</h3>
+        <div id="historyList"></div>
     </div>
 
-    <label><b>Active Devotees</b></label>
-    <div id="devoteeContainer" style="border:1px solid #ccc;padding:10px;border-radius:4px;background:#fafafa;min-height:50px"></div>
+    <div class="content-area">
+        <div class="controls">
+            <div class="input-row">
+                <div><label>Date</label><input type="date" id="dateInput"></div>
+                <div><label>Time</label><input type="time" id="timeInput"></div>
+                <div><label>Batch</label><input type="text" id="batchInput" value="A1812/2290"></div>
+                <div><label>Satsang #</label><input type="text" id="satsangInput" value="04"></div>
+            </div>
 
-    <div style="display:flex;gap:5px;margin-top:8px">
-        <input type="text" id="newName" placeholder="Enter name"
-               onkeydown="if(event.key==='Enter'){addDevotee();}">
-        <button onclick="addDevotee()" class="btn" style="background:#34495e;color:white">Add</button>
-    </div>
+            <label><b>Active Devotees</b></label>
+            <div id="devoteeContainer" style="border:1px solid #ccc;padding:10px;border-radius:4px;background:#fafafa;min-height:50px"></div>
 
-    <div class="btn-group">
-        <button class="btn btn-gen" onclick="generate()">Generate</button>
-        <button class="btn btn-copy" onclick="copyForWhatsApp()">Copy WhatsApp</button>
-        <button class="btn btn-pdf" onclick="exportPDF()">Export PDF</button>
+            <div style="display:flex;gap:5px;margin-top:8px">
+                <input type="text" id="newName" placeholder="Enter name"
+                       onkeydown="if(event.key==='Enter'){addDevotee();}">
+                <button onclick="addDevotee()" class="btn" style="background:#34495e;color:white">Add</button>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-gen" onclick="generate()">Generate</button>
+                <button class="btn" style="background:#f39c12; color:white" onclick="saveCurrent()">Save Allocation</button>
+                <button class="btn btn-copy" onclick="copyForWhatsApp()">Copy WhatsApp</button>
+                <button class="btn btn-pdf" onclick="exportPDF()">Export PDF</button>
+            </div>
+        </div>
+
+        <!-- <div id="satsang-page"></div> -->
     </div>
 </div>
 
@@ -321,10 +380,138 @@ th, td {
         timeInput.value = "11:00";
     }
 
+
+    // --- HISTORY LOGIC ---
+
+    function loadFromHistory(index) {
+        let history = JSON.parse(localStorage.getItem('satsangHistory') || '[]');
+        const data = history[index];
+
+        if (!data) return;
+
+        // 1. Restore Header Inputs
+        document.getElementById('dateInput').value = data.date;
+        document.getElementById('timeInput').value = data.time;
+        document.getElementById('batchInput').value = data.batch;
+        document.getElementById('satsangInput').value = data.satsangNo;
+
+        // 2. Render Tables with Saved Data
+        renderSavedTable('poorvangamBody', data.poorvangam);
+        renderSavedTable('dhyanamBody', data.dhyanam);
+        renderSavedTable('mahamantramBody', data.mahamantram);
+        renderSavedTable('phalasruthiBody', data.phalasruthi);
+        
+        // Update the visual display headers (Date/Time at the top of the page)
+        updateDisplayHeaders();
+    }
+
+    function renderSavedTable(bodyId, savedRows) {
+        const tbody = document.getElementById(bodyId);
+        const rows = tbody.querySelectorAll('tr');
+        
+        savedRows.forEach((savedData, index) => {
+            if (rows[index]) {
+                // Update the devotee name cell (usually index 2 in your table structure)
+                rows[index].cells[2].innerText = savedData.devoteeName;
+            }
+        });
+    }
+    // Load history from localStorage on startup
+    function loadHistoryList() {
+        const history = JSON.parse(localStorage.getItem('satsangHistory') || '[]');
+        const container = document.getElementById('historyList');
+        
+        if (history.length === 0) {
+            container.innerHTML = '<p style="font-size:12px; color:#888;">No saved items.</p>';
+            return;
+        }
+
+        container.innerHTML = history.map((item, index) => `
+            <div class="history-item">
+                <span class="history-name" onclick="loadHistoryItem(${index})">${item.customName}</span>
+                <span class="delete-hist" onclick="deleteHistoryItem(${index})">×</span>
+            </div>
+        `).join('');
+    }
+
+    function saveCurrent() {
+        let customName = prompt("Enter a name for this save (e.g., 'Monday Batch A'):");
+        if (!customName) return;
+
+        const record = {
+            customName: customName,
+            date: document.getElementById('dateInput').value,
+            time: document.getElementById('timeInput').value,
+            batch: document.getElementById('batchInput').value,
+            satsang: document.getElementById('satsangInput').value,
+            devotees: [...devotees],
+            // SAVE THE GENERATED HTML
+            poorvangamHTML: document.getElementById('poorvangamBody').innerHTML,
+            dhyanamHTML: document.getElementById('dhyanamBody').innerHTML,
+            mahamantramHTML: document.getElementById('mahamantramBody').innerHTML,
+            phalasruthiHTML: document.getElementById('phalasruthiBody').innerHTML,
+            // Also save individual field values that aren't in tables
+            nyasaName: document.getElementById('nyasaName').innerText,
+            outStart: document.getElementById('outStart').innerText,
+            outPledge: document.getElementById('outPledge').innerText,
+            finalEnd: document.getElementById('finalEnd').innerText
+        };
+
+        let history = JSON.parse(localStorage.getItem('satsangHistory') || '[]');
+        history.unshift(record);
+        localStorage.setItem('satsangHistory', JSON.stringify(history.slice(0, 5)));
+        loadHistoryList();
+    }
+
+    function loadHistoryItem(index) {
+        const history = JSON.parse(localStorage.getItem('satsangHistory') || '[]');
+        const item = history[index];
+        if (!item) return;
+
+        // 1. Restore Inputs
+        document.getElementById('dateInput').value = item.date;
+        document.getElementById('timeInput').value = item.time;
+        document.getElementById('batchInput').value = item.batch;
+        document.getElementById('satsangInput').value = item.satsang;
+
+        // 2. Restore Text Headers (Triggering manual update)
+        const [y, m, d] = item.date.split('-');
+        document.getElementById('outDate').innerText = `${d}.${m}.${y}`;
+        document.getElementById('outBatch').innerText = item.batch;
+        document.getElementById('outSatsangNum').innerText = "SATSANG " + item.satsang;
+        
+        // 3. Restore Individual Names
+        document.getElementById('nyasaName').innerText = item.nyasaName;
+        document.getElementById('outStart').innerText = item.outStart;
+        document.getElementById('outPledge').innerText = item.outPledge;
+        document.getElementById('finalEnd').innerText = item.finalEnd;
+
+        // 4. Restore the Tables EXACTLY as they were (No Randomization)
+        document.getElementById('poorvangamBody').innerHTML = item.poorvangamHTML;
+        document.getElementById('dhyanamBody').innerHTML = item.dhyanamHTML;
+        document.getElementById('mahamantramBody').innerHTML = item.mahamantramHTML;
+        document.getElementById('phalasruthiBody').innerHTML = item.phalasruthiHTML;
+
+        // 5. Restore Devotee Tags
+        devotees = item.devotees;
+        updateDevoteeList();
+
+        alert("Loaded: " + item.customName);
+    }
+
+    function deleteHistoryItem(index) {
+        if (!confirm("Delete this saved item?")) return;
+        let history = JSON.parse(localStorage.getItem('satsangHistory') || '[]');
+        history.splice(index, 1);
+        localStorage.setItem('satsangHistory', JSON.stringify(history));
+        loadHistoryList();
+    }
+
     // Execute on load
     window.onload = function() {
         setDefaults();
         updateDevoteeList();
+        loadHistoryList();
     };
 
     function addDevotee() {
